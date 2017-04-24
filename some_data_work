@@ -1,0 +1,225 @@
+---
+title: "project_combine_kjohnston"
+
+```
+
+
+
+#Data sets 1. NFL combine data set 1999 - 2016  
+#                 2. All NFL players 
+#In the last 30 years there has been an increasing emphasis on the NFL combine (athletic tryout) as a measure of the expect performance of a college player in the NFL.  I will do an exploratory analysis of the NFL combine and the outcomes (maybe total games played or some other factor).  I will use exploratory data analysis for a theme. I will be answering questions like " What is the greatest predictor of success?", I will use Random forest and KNN algorithm for prediction.  
+
+#HELPING NFL TEAMS IMPROVE DRAFT SELECTION
+#Introduction
+#The combine is an event put on by the NFL every spring prior to the NFL draft.  It measures certain aspects of athleticism like speed, agility and power.  It tries to access an athletes' probability of success at the NFL level.  The draft is where teams pick players from college to play for their team.  If a player has a good performance at the combine, their draft position will almost always improve.  I will try and predict draft round with Random Forest.  Historically the performance of the teams picking players is not very good (approx. 50%).  I am going to attempt to improve a team's success at drafting players. An average NFL career is 3 years. I believe that a successful career is 4 years.  An average career is approx. 3 years however all draftees are offered a 4-year contract however no contracts in the NFL are guaranteed so a player can be cut/let go after one year.   I purpose to use years of service in the league as a measure of success.   I will use Random forest to try and determine which factor is most important.  I will also use Random Forest algorithm for prediction.  If I can come up with a model that is 65 - 70 % I would consider that a success.
+
+#Literature Review
+#   A few studies have been done with respect to the relationship between combine performance and draft position.  One found a relationship between performance and draft position for some positions but not all.   Another study showed a significant relationship between 40-yard sprint time and professional performance for running backs.  Another study, that was position specific, examined the relationship between combine performance and draft order, and draft order and actual performance and found that high performance at the combine did correlate to draft order but not to performance in the NFL.
+#(McGee and Burkett, 2003)
+#(Kuzmits and Adams,2008)
+
+#1. Import csv file
+#2. Select relevant data
+#3. clean data 
+
+
+```{}
+install.packages("ggplot2")
+library(ggplot2)
+install.packages("plyr")
+library(plyr)
+install.packages("randomForest")
+library(randomForest)
+install.packages("caret")
+library(caret)
+install.packages("psych")
+library(psych)
+```
+
+#both data sets are publically available at http://www.nflsavant.com
+#import data set
+#chnage the path
+```{}
+combine <- read.csv("C:/Users/        /Downloads/combine.csv")
+players <- read.csv("C:/Users/       /Downloads/players_2013-12-12.csv")
+```
+
+
+#drop non relevant  columns
+```{}
+dropcolumns <- c("heightfeet","heightinches","firstname","lastname","pick","arms","hands","twentyyd","tenyd","wonderlic","year", "nflgrade", "pickround")
+combine <- combine[ ,!names(combine) %in% dropcolumns]
+players <- subset(players, select = c("name","birth_state","draft_team","year_start","year_end"))
+
+
+```
+#select only players drafted
+
+```{}
+combine <- combine[combine$round > 0, ]
+players <- players[players$year_start > 1995, ]
+combine <- combine[combine$round < 8,]
+
+```
+
+#drop non relevant positions
+```{}
+dropposition <- c("LS","K","P")
+combine <-combine[!combine$position %in% dropposition, ] 
+str(combine)
+
+```
+
+
+#change characters to factors
+```{}
+combine$position <- as.character(combine$position)
+combine$round <- as.factor(combine$round)
+
+summary(combine)
+
+```
+
+#group positions
+
+ 
+```{}
+combine$position[combine$position == "Edwards"] <- NA
+combine$position[combine$position == "Fowler"] <- NA
+combine$position[combine$position == "C"] <- "OLINE"
+combine$position[combine$position == "OG"] <- "OLINE"
+combine$position[combine$position == "OT"] <- "OLINE"
+combine$position[combine$position == "DT"] <- "DLINE"
+combine$position[combine$position == "NT"] <- "DLINE"
+combine$position[combine$position == "DE"] <- "DLINE"
+combine$position[combine$position == "OC"] <- "OLINE"
+combine$position[combine$position == "ILB"] <- "LB"
+combine$position[combine$position == "OLB"] <- "LB"
+combine$position[combine$position == "TE"] <- "TE/FB"
+combine$position[combine$position == "FB"] <- "TE/FB"
+combine$position[combine$position == "FS"] <- "Safety"
+combine$position[combine$position == "SS"] <- "Safety"
+```
+#change position back to a factor
+```{}
+combine$position <- as.factor(combine$position)
+```
+
+#fix NAs 
+```{}
+
+combine <- na.omit(combine)
+is.na(combine) <- !combine
+combine <- na.roughfix(combine)
+```
+
+
+#barplot draft by position and round
+
+```{}
+hist_position<-ggplot(combine, aes(x = round, fill= position),main = "Draft by position and Round")
+hist_position + geom_bar() + ggtitle("Draft by Position and Round")
+```
+
+
+
+#subset by position
+```{}
+DLINE <- subset(combine,position == "DLINE"
+OL <- subset(combine,position == "OLINE"
+SKILL <- subset(combine,position == c("CB" , "FB" , "RB" ,"WR"))
+QB <- subset(combine,position == "QB")
+```
+
+
+#topten colleges
+
+```{}
+tpten<- rev(sort(table(combine$college)))[1:10]
+barplot(tpten, las = 2, ylab = " number of players",xlab = "Number of players",main = "Players by College")
+```
+
+
+#topten home states
+
+```{}
+
+players$birth_state <- as.factor(players$birth_state)
+orderedstates <- rev(sort(table(players$birth_state)))[2:11]
+barplot(orderedstates, las = 2, main = "Number of Players by State") 
+```
+#pairs
+```{}
+attach(combine)
+pairs.panels(combine[c("fortyyd", "weight", "heightinchestotal","picktotal", "nflgrade")])
+```
+#random forest for importance of facotrs 
+```{}
+set.seed(420)
+fit <- randomForest(round ~ heightinchestotal + weight + fortyyd + twentyss + threecone + vertical + broad + bench  ,data=combine,importance=TRUE,ntree=2000)
+varImpPlot(fit)
+print(fit)
+```
+
+#boxplot of sprints by position
+
+```{}
+boxplot(fortyyd~position,data=combine, las = 2, main = "Forty Yd Sprint")
+```
+#boxplot of weight by position
+```{}
+boxplot(weight~position,data=combine, las = 2, main = "Weight by Position")
+```
+
+#join combine and players
+
+```{}
+pandc <- merge(combine,players, "name")
+```
+
+#create new column yearsofservice
+```{}
+yearsofservice <- (pandc$year_end - pandc$year_start)
+pandc <- cbind(pandc,yearsofservice)
+```
+
+# separate into tow groups < 3 years of service and 3  > years of service
+```{}
+x1 <- pandc[pandc$yearsofservice < 3.01, ]
+x2 <- pandc[pandc$yearsofservice > 3, ]
+x1$yearsofservice <- 1
+x2$yearsofservice <- 2
+final <- rbind(x1,x2)
+
+x3 <- players[players$draft_team == "", ]
+````
+
+
+#top 10 drafting teams and bottom 10 drafting teams
+````{}
+tptendrafting<- rev(sort(table(x2$draft_team)))[1:10]
+barplot(tptendrafting, las = 2, ylab = " number of players",main = "Top Draftting Teams")
+bottomtendrafting<- rev(sort(table(x1$draft_team)))[1:10]
+barplot(bottomtendrafting, las = 2, ylab = " number of players",main = "Bottom Drafting Teams")
+
+
+
+````
+#length of career for an undrafted player
+````{}
+undrafted <- (x3$year_end - x3$year_start)
+mean(undrafted)
+drafted <- pandc$yearsofservice
+mean(drafted)
+boxplot(cbind(drafted , undrafted),main = "Length of Carreer")
+````
+#undrafted and drafted players have almost the same average length of service
+
+#try and predict career length from combine data greater or less than 3 years with random forest
+````{}
+set.seed(420)
+f <- randomForest(yearsofservice ~ heightinchestotal + weight + fortyyd + twentyss + threecone + vertical + broad + bench  ,data=final,importance=TRUE,ntree=2000)
+varImpPlot(f)
+print(f)
+````
+#65% accuracy
